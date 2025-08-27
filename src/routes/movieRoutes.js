@@ -1,17 +1,11 @@
+// Routes untuk mengelola data film
 const express = require("express");
-const router = express.Router();
-const {
-  getAllMovies,
-  getMovieById,
-  addMovie,
-  updateMovie,
-  deleteMovie,
-} = require("../controllers/movieController");
+const { getMovies } = require("../controllers/movieController");
+const { verifyToken } = require("../middleware/authMiddleware");
 
-router.get("/movies", getAllMovies);
-router.get("/movie/:id", getMovieById);
-router.post("/movie", addMovie);
-router.patch("/movie/:id", updateMovie);
-router.delete("/movie/:id", deleteMovie);
+const router = express.Router();
+
+// GET /movie - Mendapatkan data film dengan query params
+router.get("/movie", verifyToken, getMovies);
 
 module.exports = router;

@@ -1,103 +1,43 @@
+// Controller untuk mengelola data film
 const db = require("../config/database");
 
-// Get all movies
-const getAllMovies = (req, res) => {
-  const query = `
-    SELECT MovieID, MovieName, GenreTable.GenreName 
-    FROM MovieTable 
-    INNER JOIN GenreTable ON MovieTable.GenreID = GenreTable.GenreID
-  `;
+// Mendapatkan semua film dengan filter, sort, dan pencarian
+const getMovies = async (req, res) => {
+  try {
+    const { genre, sortBy, search } = req.query;
 
-  db.query(query, (err, results) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      res.json(results);
+    // Query dasar
+    let query = db("MovieTable")
+      .join("GenreTable", "MovieTable.GenreID", "GenreTable.GenreID")
+      .select("MovieID", "MovieName", "GenreTable.GenreName");
+
+    // Filter berdasarkan genre
+    if (genre) {
+      query = query.where("GenreTable.GenreName", genre);
     }
-  });
-};
 
-// Get movie by id
-const getMovieById = (req, res) => {
-  const id = req.params.id;
-  const query = `
-    SELECT MovieID, MovieName, GenreTable.GenreName 
-    FROM MovieTable 
-    INNER JOIN GenreTable ON MovieTable.GenreID = GenreTable.GenreID 
-    WHERE MovieID = ?
-  `;
-
-  db.query(query, [id], (err, results) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      if (results.length > 0) {
-        res.json(results[0]);
-      } else {
-        res.status(404).send("Movie not found");
-      }
+    // Pencarian berdasarkan nama film
+    if (search) {
+      query = query.where("MovieName", "like", `%${search}%`);
     }
-  });
-};
 
-// Add a new movie
-const addMovie = (req, res) => {
-  const { MovieName, GenreID } = req.body;
-  const query = "INSERT INTO MovieTable (MovieName, GenreID) VALUES (?, ?)";
-
-  db.query(query, [MovieName, GenreID], (err, results) => {
-    if (err) {
-      res.status(500).send(err);
+    // Pengurutan hasil
+    if (sortBy) {
+      const [column, order] = sortBy.split(":");
+      query = query.orderBy(column, order || "asc");
     } else {
-      res
-        .status(201)
-        .json({ message: "Movie added successfully", id: results.insertId });
+      query = query.orderBy("MovieID", "asc");
     }
-  });
+
+    const movies = await query;
+
+    res.json(movies);
+  } catch (error) {
+    console.error("Error get movies:", error);
+    res.status(500).json({
+      error: "Terjadi kesalahan server.",
+    });
+  }
 };
 
-// Update a movie
-const updateMovie = (req, res) => {
-  const id = req.params.id;
-  const { MovieName, GenreID } = req.body;
-  const query =
-    "UPDATE MovieTable SET MovieName = ?, GenreID = ? WHERE MovieID = ?";
-
-  db.query(query, [MovieName, GenreID, id], (err, results) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      if (results.affectedRows === 0) {
-        res.status(404).send("Movie not found");
-      } else {
-        res.json({ message: "Movie updated successfully" });
-      }
-    }
-  });
-};
-
-// Delete a movie
-const deleteMovie = (req, res) => {
-  const id = req.params.id;
-  const query = "DELETE FROM MovieTable WHERE MovieID = ?";
-
-  db.query(query, [id], (err, results) => {
-    if (err) {
-      res.status(500).send(err);
-    } else {
-      if (results.affectedRows === 0) {
-        res.status(404).send("Movie not found");
-      } else {
-        res.json({ message: "Movie deleted successfully" });
-      }
-    }
-  });
-};
-
-module.exports = {
-  getAllMovies,
-  getMovieById,
-  addMovie,
-  updateMovie,
-  deleteMovie,
-};
+module.exports = { getMovies };
